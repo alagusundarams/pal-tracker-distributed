@@ -24,7 +24,8 @@ class CfMigrationPlugin implements Plugin<Project> {
                         Thread.start {
                             tunnelProcess = "cf ssh -N -L 63306:${getMysqlHost(appName)}:3306 $appName".execute()
                         }
-                        sleep 5_000L
+                        //sleep 5_000L
+                        waitForSocketOnPort(63306)
                     }
                 }
 
@@ -49,7 +50,24 @@ class CfMigrationPlugin implements Plugin<Project> {
             }
         }
     }
+    private def waitForSocketOnPort(int port) {
+        def attempts = 0
+        def isOpen = false
 
+        while (!isOpen && attempts <= 50) {
+            try {
+                new Socket("localhost", port)
+                isOpen = true
+            } catch (IOException e) {
+                attempts += 1
+                Thread.sleep(200)
+            }
+        }
+
+        if (!isOpen) {
+            throw new GradleException("Timed out waiting for SSH tunnel to open")
+        }
+    }
 
     private def getMysqlHost = { cfAppName ->
         return getMysqlCredentials(cfAppName)["hostname"]
